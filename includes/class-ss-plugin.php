@@ -124,6 +124,7 @@ class Plugin {
 		$path = plugin_dir_path( dirname( __FILE__ ) );
 		require_once $path . 'includes/shims.php';
 		require_once $path . 'includes/libraries/phpuri.php';
+		require_once $path . 'includes/libraries/S3.php';
 		require_once $path . 'includes/libraries/PhpSimple/HtmlDomParser.php';
 		require_once $path . 'includes/libraries/wp-background-processing/wp-background-processing.php';
 		require_once $path . 'includes/class-ss-options.php';
@@ -136,6 +137,7 @@ class Plugin {
 		require_once $path . 'includes/tasks/class-ss-fetch-urls-task.php';
 		require_once $path . 'includes/tasks/class-ss-transfer-files-locally-task.php';
 		require_once $path . 'includes/tasks/class-ss-create-zip-archive.php';
+		require_once $path . 'includes/tasks/class-ss-publish-to-s3-task.php';
 		require_once $path . 'includes/tasks/class-ss-wrapup-task.php';
 		require_once $path . 'includes/tasks/class-ss-cancel-task.php';
 		require_once $path . 'includes/class-ss-query.php';
@@ -358,6 +360,9 @@ class Plugin {
 			->assign( 'urls_to_exclude', $this->options->get( 'urls_to_exclude' ) )
 			->assign( 'delivery_method', $this->options->get( 'delivery_method' ) )
 			->assign( 'local_dir', $this->options->get( 'local_dir' ) )
+			->assign( 'aws_s3_bucket', $this->options->get( 'aws_s3_bucket' ) )
+			->assign( 'aws_access_key_id', $this->options->get( 'aws_access_key_id' ) )
+			->assign( 'aws_secret_access_key', $this->options->get( 'aws_secret_access_key' ) )
 			->assign( 'delete_temp_files', $this->options->get( 'delete_temp_files' ) )
 			->assign( 'destination_url_type', $this->options->get( 'destination_url_type' ) )
 			->assign( 'relative_path', $this->options->get( 'relative_path' ) )
@@ -432,6 +437,9 @@ class Plugin {
 			->set( 'additional_files', $this->fetch_post_value( 'additional_files' ) )
 			->set( 'urls_to_exclude', $urls_to_exclude )
 			->set( 'delivery_method', $this->fetch_post_value( 'delivery_method' ) )
+         ->set( 'aws_s3_bucket', $this->fetch_post_value( 'aws_s3_bucket' ) )
+         ->set( 'aws_access_key_id', $this->fetch_post_value( 'aws_access_key_id' ) )
+         ->set( 'aws_secret_access_key', $this->fetch_post_value( 'aws_secret_access_key' ) )
 			->set( 'local_dir', Util::trailingslashit_unless_blank( $this->fetch_post_value( 'local_dir' ) ) )
 			->set( 'delete_temp_files', $this->fetch_post_value( 'delete_temp_files' ) )
 			->set( 'destination_url_type', $destination_url_type )
@@ -733,6 +741,8 @@ class Plugin {
 			array_push( $task_list, 'create_zip_archive' );
 		} else if ( $delivery_method === 'local' ) {
 			array_push( $task_list, 'transfer_files_locally' );
+		} else if ( $delivery_method === 's3' ) {
+			array_push( $task_list, 'publish_to_s3' );
 		}
 		array_push( $task_list, 'wrapup' );
 
